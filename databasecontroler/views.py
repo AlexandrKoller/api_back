@@ -13,6 +13,10 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 import mimetypes
 from django.core.files.storage import FileSystemStorage
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 User=get_user_model()
 
 # Create your views here.
@@ -60,6 +64,12 @@ class UserFileViewSet(ModelViewSet):
             permission_classes = self.permission_classes
         return [permission() for permission in permission_classes]
     
+    def create(self, request, *args, **kwargs):
+        if int(request.user.SizeStorage + request.FILES['File'].size) > int(os.getenv("MAX_SIZE_USER_STORAGE")):
+            data = {'message': 'yours storage is full'}
+            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        return super().create(request, *args, **kwargs)
+    
     @action(methods=['get'], detail=True)
     def memberfiles(self, request, pk=None, *args, **kwargs):
         queryset = self.get_queryset()
@@ -82,7 +92,7 @@ class UserFileViewSet(ModelViewSet):
             serializer = UserFileSerializer(instance)
             return Response(serializer.data, status=status.HTTP_200_OK)  
         file_handle = instance.File.open()
-        response = FileResponse(file_handle, as_attachment=True, filename=instance.Name, content_type=mimetypes.guess_type(instance.File.path)[0])
+        response = FileResponse(file_handle, as_attachment=True, filename=instance.Name, content_type=mimetypes.guess_type(instance.File.path)[0], status=status.HTTP_200_OK)
         instance.DateLastDownLoad = timezone.now()
         instance.save()
         return response
