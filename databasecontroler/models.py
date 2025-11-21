@@ -37,22 +37,21 @@ class UserFile(models.Model):
     DateLastDownLoad = models.DateTimeField(default=None, null=True, verbose_name='Дата последнего скачивания')
     Name = models.CharField(max_length=300, verbose_name='Имя файла')
     loadcode = models.CharField(blank=True, default=str(uuid4()), null=True, verbose_name='Код загрузки')
-
     def __str__(self) -> str:
         return f'{self.Name}'
     
 @receiver(models.signals.post_delete, sender=UserFile)
 def auto_delete_file_on_delete(sender, instance, **kwargs):
     if instance.File:
+        instance.FileOwner.FileCount = instance.FileOwner.FileCount - 1
         instance.FileOwner.SizeStorage = instance.FileOwner.SizeStorage - instance.File.size
-        instance.FileOwner.save
+        instance.FileOwner.save()
         if os.path.isfile(instance.File.path):
             os.remove(instance.File.path) 
 
 @receiver(models.signals.post_save, sender=UserFile)
 def auto_add_count_user_file(sender, instance, created, **kwargs):
     if created:
-        print(instance.FileOwner)
         user = instance.FileOwner
         user.FileCount = user.FileCount + 1
         user.SizeStorage = user.SizeStorage + instance.File.size

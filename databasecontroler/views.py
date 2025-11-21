@@ -49,10 +49,9 @@ class UserFileViewSet(ModelViewSet):
         if self.action == 'memberfiles':
             pk = self.kwargs['pk']
             return UserFile.objects.filter(FileOwner=pk)
-        if user.is_staff == False:
-            return UserFile.objects.filter(FileOwner=user)
-        if self.action == 'download_anon' or user.is_staff:
+        if self.action == 'download_anon':
             return UserFile.objects.all()
+        return UserFile.objects.filter(FileOwner=user)
     
     def perform_create(self, serializer):
         serializer.save(FileOwner=self.request.user)
@@ -64,9 +63,23 @@ class UserFileViewSet(ModelViewSet):
             permission_classes = self.permission_classes
         return [permission() for permission in permission_classes]
     
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = UserFileSerializer(queryset, many=True)
+        data = serializer.data
+        new_data = []
+        for item in data:
+            file = UserFile.objects.get(pk=item['id'])
+            item['size'] = file.File.size
+            new_data.append(item)
+        return Response(new_data, status=status.HTTP_200_OK)
+    
     def create(self, request, *args, **kwargs):
         if int(request.user.SizeStorage + request.FILES['File'].size) > int(os.getenv("MAX_SIZE_USER_STORAGE")):
             data = {'message': 'yours storage is full'}
+            return Response(data, status=status.HTTP_403_FORBIDDEN)
+        if int(request.FILES['File'].size) > int(os.getenv("MAX_FILE_SIZE")):
+            data = {'message': 'the allowed file size has been exceeded'}
             return Response(data, status=status.HTTP_403_FORBIDDEN)
         return super().create(request, *args, **kwargs)
     
