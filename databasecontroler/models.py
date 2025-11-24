@@ -20,10 +20,10 @@ def post_create_preparation(sender, instance=None, created=False, **kwargs):
         instance.save()
         Token.objects.create(user=instance)
 
-@receiver(pre_delete, sender=User)
-def delete_user_storage(sender, instance=None, **kwargs):
-    if os.path.isdir(f'{settings.MEDIA_ROOT}/documents/{instance.UserStorage}'):
-        shutil.rmtree(f'{settings.MEDIA_ROOT}/documents/{instance.UserStorage}')
+# @receiver(pre_delete, sender=User)
+# def delete_user_storage(sender, instance=None, **kwargs):
+#     if os.path.isdir(f'{settings.MEDIA_ROOT}/documents/{instance.UserStorage}'):
+#         shutil.rmtree(f'{settings.MEDIA_ROOT}/documents/{instance.UserStorage}')
 
 def user_directory_path(instance, filename):   
     return 'documents/{0}/{1}'.format(instance.FileOwner.UserStorage, str(uuid4())+'.'+filename.split('.')[1])  
@@ -47,7 +47,9 @@ def auto_delete_file_on_delete(sender, instance, **kwargs):
         instance.FileOwner.SizeStorage = instance.FileOwner.SizeStorage - instance.File.size
         instance.FileOwner.save()
         if os.path.isfile(instance.File.path):
-            os.remove(instance.File.path) 
+            os.remove(instance.File.path)
+            if not os.listdir(f'{settings.MEDIA_ROOT}/documents/{instance.FileOwner.UserStorage}'):  
+                os.rmdir(f'{settings.MEDIA_ROOT}/documents/{instance.FileOwner.UserStorage}') 
 
 @receiver(models.signals.post_save, sender=UserFile)
 def auto_add_count_user_file(sender, instance, created, **kwargs):
